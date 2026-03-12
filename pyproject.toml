@@ -1,0 +1,28 @@
+[project]
+name = "clibaseapp"
+version = "0.1.0"
+description = "Un framework base para construir utilidades de línea de comandos interactivas en Python."
+readme = "README.md"
+authors = [
+    { name = "fberoy" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.0.0",
+    "questionary>=2.0.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "mypy",
+    "ruff"
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/clibaseapp"]
