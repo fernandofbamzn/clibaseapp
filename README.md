@@ -1,68 +1,70 @@
 # CLI Base App Framework
 
-Framework reutilizable de Python para construir interfaces de línea de comandos modernas e interactivas utilizando `Typer`, `Rich`, y `Questionary`.
+Framework reutilizable de Python para construir aplicaciones CLI interactivas con menús, configuración, y diagnósticos integrados.
 
 ## Instalación
 
 ```bash
-# Desde un repositorio local hermano
-pip install -e ../clibaseapp
-
-# Desde GitHub
-pip install git+https://github.com/tu-usuario/clibaseapp.git
+pip install -e ../clibaseapp     # Desde proyecto hermano
+pip install git+https://...      # Desde GitHub
 ```
 
-## Uso Básico
+## Uso Rápido
 
 ```python
-from clibaseapp import CLIBaseApp, BrowserMenu, show_success, clear_screen, show_header
+from clibaseapp import CLIBaseApp, check_and_install
 
 class MiApp(CLIBaseApp):
     def __init__(self):
-        super().__init__(app_name="mi-app", description="Mi Herramienta CLI")
-
-    def setup_commands(self):
-        self.register_menu_option("📁 Navegar", "browse", self.navegar)
-        self.register_menu_option("🧪 Test", "test", self.test)
+        super().__init__(app_name="mi-app", description="Mi App")
+        self.require_binaries(["git"])
     
-    def navegar(self):
-        browser = BrowserMenu(file_extensions={".txt", ".csv"}, file_icon="📄")
-        result = browser.browse(Path.cwd())
-    
-    def test(self):
-        clear_screen()
-        show_header("Mi Comando", icon="🔧")
+    def mi_accion(self):
+        from clibaseapp import show_success
         show_success("¡Funciona!")
+    
+    def setup_commands(self):
+        self.register_menu_option("🚀 Mi Acción", "action", self.mi_accion)
 
 if __name__ == "__main__":
+    check_and_install(["rich", "questionary", "typer"])
     MiApp().run()
 ```
+
+## Menú por Defecto (automático)
+
+Toda app hija incluye sin código adicional:
+- 🩺 **Doctor** — Diagnóstico de binarios y paths del sistema
+- ⚙️ **Config** — Editor interactivo de configuración
+- 📖 **Docs** — Visor de documentación `.md`
+- 🔄 **Update** — Auto-actualización via `git pull`
+- ❌ **Salir** — Cierre limpio
 
 ## Estructura del Paquete
 
 ```
 src/clibaseapp/
-├── __init__.py          # API pública re-exportada
-├── app.py               # CLIBaseApp — clase maestra heredable
-├── exceptions.py        # Excepciones base del framework
-├── models.py            # BrowseResult y modelos genéricos
+├── app.py               CLIBaseApp heredable
+├── models.py             BrowseResult, DoctorCheck, DoctorResult
+├── exceptions.py         7 excepciones base
 ├── core/
-│   ├── config.py        # ConfigManager (XDG config.json)
-│   └── updater.py       # Auto-actualización via git pull
+│   ├── config.py         ConfigManager (XDG)
+│   ├── scanner.py        Escáner genérico por extensiones
+│   ├── updater.py        git pull + reinicio
+│   └── dependency_check  pip verification
+├── services/
+│   ├── doctor_service.py Diagnóstico genérico
+│   └── browse_service.py Navegación + Protocol
 └── ui/
-    ├── browser.py       # BrowserMenu — navegador de directorios
-    ├── components.py    # Motor gráfico Rich (headers, tablas, etc.)
-    ├── menus.py         # BaseMenu abstracto (Questionary)
-    └── theme.py         # Tema de colores compartido
+    ├── browser.py        BrowserMenu parametrizado
+    ├── components.py     Motor Rich + renders genéricos
+    ├── doc_viewer.py     Visor interactivo .md
+    ├── formatter.py      Formatter normalizado
+    ├── menus.py          BaseMenu (select/checkbox/confirm/text/path)
+    └── theme.py          Tema Rich compartido
 ```
 
-## Qué Hereda una App Hija Automáticamente
+## Documentación
 
-- Menú interactivo principal con bucle infinito
-- Clear screen + pause entre pantallas
-- Gestión de configuración (`~/.config/<app_name>/config.json`)
-- Navegador genérico de directorios
-- Auto-actualización via `git pull` + reinicio
-- Try/Catch global de excepciones
-- Verificación de binarios del sistema (`require_binaries()`)
-- Fix automático de Unicode/Emojis en consolas Windows
+- [Guía: Crear una App](docs/getting_started.md)
+- [Arquitectura](docs/architecture.md)

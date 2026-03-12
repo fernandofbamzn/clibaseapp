@@ -67,3 +67,61 @@ class ConfigManager:
         """Obtiene un valor específico del config JSON."""
         data = self.read_all()
         return data.get(key, default)
+
+    def validate_path(self, path: Path, source: str = "") -> Path:
+        """Valida que un path exista, sea directorio y tenga permisos de lectura."""
+        resolved = path.expanduser().resolve()
+
+        if not resolved.exists():
+            raise ConfigurationError(
+                f"La ruta '{resolved}'{f' ({source})' if source else ''} no existe."
+            )
+        if not resolved.is_dir():
+            raise ConfigurationError(
+                f"La ruta '{resolved}'{f' ({source})' if source else ''} no es un directorio."
+            )
+        if not os.access(resolved, os.R_OK):
+            raise ConfigurationError(
+                f"La ruta '{resolved}'{f' ({source})' if source else ''} no tiene permisos de lectura."
+            )
+        return resolved
+
+    def load_path(self, key: str, env_var: str = "", fallback: Path = None) -> Path:
+        """Carga un path desde env → config → fallback con validación suave.
+
+        Args:
+            key: Clave en el config.json.
+            env_var: Variable de entorno a comprobar primero (opcional).
+            fallback: Path por defecto si no se encuentra nada.
+
+        Returns:
+            Path resuelto (puede ser el fallback sin validar si todo falla).
+        """
+        fallback = fallback or Path.cwd()
+        source = ""
+
+        # 1. Intentar desde variable de entorno
+        env_value = os.getenv(env_var) if env_var else None
+        if env_value:
+            source = f"variable de entorno {env_var}"
+            try:
+                return self.validate_path(Path(env_value), source)
+            except ConfigurationError:
+                logger.warning("Variable %s inválida, probando config.", env_var)
+
+        # 2. Intentar desde config.json
+        config_value = self.get(key)
+        if config_value:
+            source = f"config ({key})"
+            try:
+                return self.validate_path(Path(config_value), source)
+            except ConfigurationError:
+                logger.warning("Config '%s' inválido, usando fallback.", key)
+
+        # 3. Fallback
+        try:
+            return self.validate_path(fallback, "fallback")
+        except ConfigurationError:
+            logger.warning("Fallback '%s' inválido, devolviendo sin validar.", fallback)
+            return fallback
+

@@ -3,17 +3,42 @@ CLI Base App Framework.
 Framework reutilizable para construir interfaces CLI interactivas modernas.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
+# ── Clase maestra ──
 from clibaseapp.app import CLIBaseApp
-from clibaseapp.exceptions import CLIAppError, ConfigurationError, BinaryMissingError
-from clibaseapp.models import BrowseResult
+
+# ── Excepciones ──
+from clibaseapp.exceptions import (
+    BinaryMissingError,
+    CLIAppError,
+    ConfigurationError,
+    DependencyInstallationError,
+    ExternalToolError,
+    InteractiveMenuError,
+    PermissionAccessError,
+)
+
+# ── Modelos ──
+from clibaseapp.models import BrowseResult, DoctorCheck, DoctorResult
+
+# ── Core ──
 from clibaseapp.core.config import ConfigManager
+from clibaseapp.core.scanner import scan_files
+from clibaseapp.core.dependency_check import check_and_install
+
+# ── Servicios ──
+from clibaseapp.services.doctor_service import DoctorService
+from clibaseapp.services.browse_service import BrowseService, BrowseSelector
+
+# ── UI ──
 from clibaseapp.ui.components import (
     clear_screen,
     console,
     dict_table,
     pause,
+    render_browse_result,
+    render_doctor_result,
     show_error,
     show_header,
     show_info,
@@ -22,20 +47,43 @@ from clibaseapp.ui.components import (
 )
 from clibaseapp.ui.browser import BrowserMenu
 from clibaseapp.ui.menus import BaseMenu
+from clibaseapp.ui.formatter import Formatter, fmt
+from clibaseapp.ui.doc_viewer import show_docs
 
 __all__ = [
+    # Core
     "CLIBaseApp",
+    "ConfigManager",
+    "scan_files",
+    "check_and_install",
+    # Exceptions
     "CLIAppError",
     "ConfigurationError",
     "BinaryMissingError",
+    "InteractiveMenuError",
+    "PermissionAccessError",
+    "ExternalToolError",
+    "DependencyInstallationError",
+    # Models
     "BrowseResult",
-    "ConfigManager",
+    "DoctorCheck",
+    "DoctorResult",
+    # Services
+    "DoctorService",
+    "BrowseService",
+    "BrowseSelector",
+    # UI
     "BrowserMenu",
     "BaseMenu",
+    "Formatter",
+    "fmt",
     "clear_screen",
     "console",
     "dict_table",
     "pause",
+    "render_browse_result",
+    "render_doctor_result",
+    "show_docs",
     "show_error",
     "show_header",
     "show_info",
