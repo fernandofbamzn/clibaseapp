@@ -79,17 +79,17 @@ class CLIBaseApp:
 
     def _interactive_main_menu(self) -> None:
         """Motor del bucle infinito interactivo gráfico principal."""
-        
-        # Añade la salida por defecto.
-        choices = [
-            questionary.Choice(opt["title"], value=opt["value"])
-            for opt in self.menu_options
-        ]
-        choices.append(questionary.Choice("❌ Salir", value="exit"))
 
         while True:
             clear_screen()
             show_header(self.description, "Inicio", icon="⚡")
+
+            # Reconstruimos choices en cada iteración para capturar opciones dinámicas
+            choices = [
+                questionary.Choice(opt["title"], value=opt["value"])
+                for opt in self.menu_options
+            ]
+            choices.append(questionary.Choice("❌ Salir", value="exit"))
 
             choice = questionary.select(
                 "Selecciona una opción:",
