@@ -54,7 +54,7 @@ if __name__ == "__main__":
 | 🩺 Doctor | Verifica binarios y paths registrados |
 | ⚙️ Config | Editor interactivo de `config.json` |
 | 📖 Docs | Visor de `.md` del padre e hijo |
-| 🔄 Update | `git pull` + reinicio automático |
+| 🔄 Update | `git pull` + reinicio automático si la app se ejecuta desde un repo Git |
 | ❌ Salir | Cierre limpio |
 | 🎨 UI | `show_header`, `show_info`, `show_success`, etc. |
 | 📁 Browser | `BrowserMenu` para navegar directorios |

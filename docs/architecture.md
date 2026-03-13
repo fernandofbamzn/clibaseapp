@@ -10,7 +10,7 @@ clibaseapp/
 ├── core/
 │   ├── config.py         ConfigManager (XDG config.json)
 │   ├── scanner.py        scan_files() genérico
-│   ├── updater.py        git pull + reinicio
+│   ├── updater.py        detección Git + actualización + reinicio
 │   └── dependency_check  Verificación de pip packages
 ├── services/
 │   ├── doctor_service.py DoctorService (binarios + paths)

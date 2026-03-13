@@ -37,7 +37,7 @@ Toda app hija incluye sin código adicional:
 - 🩺 **Doctor** — Diagnóstico de binarios y paths del sistema
 - ⚙️ **Config** — Editor interactivo de configuración
 - 📖 **Docs** — Visor de documentación `.md`
-- 🔄 **Update** — Auto-actualización via `git pull`
+- 🔄 **Update** — Auto-actualización vía Git cuando la app se ejecuta desde un clon del repositorio
 - ❌ **Salir** — Cierre limpio
 
 ## Estructura del Paquete
@@ -50,7 +50,7 @@ src/clibaseapp/
 ├── core/
 │   ├── config.py         ConfigManager (XDG)
 │   ├── scanner.py        Escáner genérico por extensiones
-│   ├── updater.py        git pull + reinicio
+│   ├── updater.py        detección Git + actualización + reinicio
 │   └── dependency_check  pip verification
 ├── services/
 │   ├── doctor_service.py Diagnóstico genérico

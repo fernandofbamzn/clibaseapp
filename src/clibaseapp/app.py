@@ -30,7 +30,7 @@ class CLIBaseApp:
     - 🩺 Doctor (diagnóstico de binarios y paths)
     - ⚙️ Configuración
     - 📖 Documentación
-    - 🔄 Actualizar App (git pull + reinicio)
+    - 🔄 Actualizar App (vía Git si la instalación lo soporta)
     - ❌ Salir
 
     La app hija solo añade sus opciones de negocio en `setup_commands()`.
@@ -148,7 +148,7 @@ class CLIBaseApp:
         show_docs(self._app_dir)
 
     def _run_update(self) -> None:
-        """Actualizador via git pull."""
+        """Actualizador vía Git si la instalación lo soporta."""
         entrypoint = sys.modules["__main__"].__file__
         check_for_updates(entrypoint)
 
