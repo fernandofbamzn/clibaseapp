@@ -1,5 +1,8 @@
 """
-Clase maestra del Framework para crear utilidades CLI.
+Clase maestra del framework para crear utilidades CLI interactivas.
+
+`CLIBaseApp` centraliza configuración, documentación, checks básicos y el
+menú principal para que las apps hijas solo aporten su lógica de dominio.
 """
 
 import sys
@@ -37,6 +40,8 @@ class CLIBaseApp:
     """
 
     def __init__(self, app_name: str, description: str):
+        """Inicializa el framework base y la configuración común de la app hija."""
+
         # Fix Unicode/Emojis en consolas Windows (cmd)
         if sys.platform == "win32":
             try:
@@ -167,7 +172,11 @@ class CLIBaseApp:
             self._interactive_main_menu()
 
     def _interactive_main_menu(self) -> None:
-        """Bucle infinito interactivo del menú principal."""
+        """Bucle interactivo del menú principal.
+
+        La ejecución de callbacks del hijo queda encapsulada aquí para que
+        el manejo de cancelaciones y pausas sea uniforme en todas las apps.
+        """
         while True:
             clear_screen()
             show_header(self.description, "Inicio", icon="⚡")

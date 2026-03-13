@@ -9,18 +9,24 @@ from pathlib import Path
 class DemoApp(CLIBaseApp):
     """Aplicación de prueba para validar que el framework funciona."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Inicializa una app mínima que demuestra herencia y navegación."""
+
         super().__init__(
             app_name="demo-cli",
             description="Aplicación de Demo del Framework"
         )
 
-    def run_tests(self):
+    def run_tests(self) -> None:
+        """Muestra una acción simple de negocio sobre el framework."""
+
         clear_screen()
         show_header("Probando Lógica Hija", icon="🧪")
         show_success("¡La lógica ejecutada desde la hija hereda correctamente la UI!")
 
-    def run_browse(self):
+    def run_browse(self) -> None:
+        """Ejecuta el navegador genérico del framework sobre el cwd."""
+
         clear_screen()
         show_header("Navegador de Archivos", icon="📁")
         browser = BrowserMenu(file_extensions={".txt", ".py", ".md"}, file_icon="📝")

@@ -11,7 +11,11 @@ from clibaseapp.ui.components import clear_screen, show_error, show_header, show
 
 
 def _run_git_command(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
-    """Ejecuta un comando Git y devuelve su resultado."""
+    """Ejecuta un comando Git y devuelve su resultado.
+
+    Centralizar la llamada facilita el testeo y mantiene homogéneo el
+    tratamiento de `capture_output`, `text` y `cwd`.
+    """
 
     return subprocess.run(
         ["git", *args],
@@ -32,7 +36,11 @@ def _show_non_git_installation_warning() -> None:
 
 
 def check_for_updates(app_entrypoint_file: str) -> None:
-    """Realiza un git pull desde la raíz del repo y reinicia si hay cambios."""
+    """Realiza un `git pull` desde la raíz del repo y reinicia si hay cambios.
+
+    Si el entrypoint no está dentro de un repositorio Git válido, informa al
+    usuario y retorna sin tratarlo como error de ejecución.
+    """
 
     clear_screen()
     show_header("Actualización de la Aplicación", icon="🔄")

@@ -1,70 +1,127 @@
-# CLI Base App Framework
+# clibaseapp
 
-Framework reutilizable de Python para construir aplicaciones CLI interactivas con menús, configuración, y diagnósticos integrados.
+`clibaseapp` es un framework reutilizable para construir aplicaciones CLI interactivas en Python con una base común de configuración, documentación, diagnóstico y navegación.
+
+## Capacidades principales
+
+- Menú interactivo basado en `Typer`, `Questionary` y `Rich`.
+- `ConfigManager` con persistencia XDG (`~/.config/<app>/config.json`).
+- Doctor para validar binarios y rutas.
+- Visor integrado de documentación Markdown.
+- Utilidades de UI compartidas (`show_header`, `show_info`, `dict_table`, `fmt`, etc.).
+- Actualización vía Git cuando la app se ejecuta desde un clon del repositorio.
 
 ## Instalación
 
+Desde un proyecto hermano:
+
 ```bash
-pip install -e ../clibaseapp     # Desde proyecto hermano
-pip install git+https://...      # Desde GitHub
+pip install -e ../clibaseapp
 ```
 
-## Uso Rápido
+Desde un repositorio Git:
+
+```bash
+pip install git+https://github.com/<org>/<repo>.git
+```
+
+## Ejemplo mínimo de integración
 
 ```python
-from clibaseapp import CLIBaseApp, check_and_install
+from pathlib import Path
+
+from clibaseapp import CLIBaseApp, check_and_install, show_success
+
 
 class MiApp(CLIBaseApp):
-    def __init__(self):
-        super().__init__(app_name="mi-app", description="Mi App")
+    def __init__(self) -> None:
+        super().__init__(app_name="mi-app", description="Mi App CLI")
+        self.config.default_config = {
+            "data_root": str(Path.cwd()),
+            "language": "es",
+        }
+        self._app_dir = Path(__file__).parent.resolve()
         self.require_binaries(["git"])
-    
-    def mi_accion(self):
-        from clibaseapp import show_success
-        show_success("¡Funciona!")
-    
-    def setup_commands(self):
-        self.register_menu_option("🚀 Mi Acción", "action", self.mi_accion)
+
+    def run_healthcheck(self) -> None:
+        show_success("La app hija está corriendo sobre clibaseapp.")
+
+    def setup_commands(self) -> None:
+        self.register_menu_option("Verificación", "healthcheck", self.run_healthcheck)
+
 
 if __name__ == "__main__":
     check_and_install(["rich", "questionary", "typer"])
     MiApp().run()
 ```
 
-## Menú por Defecto (automático)
+## Flujo recomendado para una app hija
 
-Toda app hija incluye sin código adicional:
-- 🩺 **Doctor** — Diagnóstico de binarios y paths del sistema
-- ⚙️ **Config** — Editor interactivo de configuración
-- 📖 **Docs** — Visor de documentación `.md`
-- 🔄 **Update** — Auto-actualización vía Git cuando la app se ejecuta desde un clon del repositorio
-- ❌ **Salir** — Cierre limpio
+1. Heredar de `CLIBaseApp`.
+2. Definir `self.config.default_config` en `__init__`.
+3. Registrar comandos propios en `setup_commands()`.
+4. Mantener la lógica de negocio fuera del entrypoint.
+5. Documentar la app hija en `README.md` y `docs/`.
 
-## Estructura del Paquete
+## Menú base incorporado
 
+Toda app hija recibe estas opciones sin implementación adicional:
+
+- `Doctor`: valida binarios y rutas registradas.
+- `Config`: edita el `config.json` de la app.
+- `Docs`: abre los `.md` del proyecto.
+- `Actualizar App`: ejecuta la actualización vía Git si el runtime está dentro de un repositorio válido.
+- `Salir`: cierra el bucle interactivo de forma limpia.
+
+## Ejemplos de uso habituales
+
+Ejecutar la demo incluida:
+
+```bash
+python demo_app.py
 ```
+
+Instalar dependencias antes de arrancar una app hija:
+
+```python
+from clibaseapp import check_and_install
+
+check_and_install(["rich", "questionary", "typer"])
+```
+
+Leer una ruta tipada desde configuración:
+
+```python
+from pathlib import Path
+
+data_root = self.config.load_path("data_root", fallback=Path.cwd())
+```
+
+## Estructura del framework
+
+```text
 src/clibaseapp/
-├── app.py               CLIBaseApp heredable
-├── models.py             BrowseResult, DoctorCheck, DoctorResult
-├── exceptions.py         7 excepciones base
+├── app.py
+├── exceptions.py
+├── models.py
 ├── core/
-│   ├── config.py         ConfigManager (XDG)
-│   ├── scanner.py        Escáner genérico por extensiones
-│   ├── updater.py        detección Git + actualización + reinicio
-│   └── dependency_check  pip verification
+│   ├── config.py
+│   ├── dependency_check.py
+│   ├── scanner.py
+│   └── updater.py
 ├── services/
-│   ├── doctor_service.py Diagnóstico genérico
-│   └── browse_service.py Navegación + Protocol
+│   ├── browse_service.py
+│   └── doctor_service.py
 └── ui/
-    ├── browser.py        BrowserMenu parametrizado
-    ├── components.py     Motor Rich + renders genéricos
-    ├── doc_viewer.py     Visor interactivo .md
-    ├── formatter.py      Formatter normalizado
-    ├── menus.py          BaseMenu (select/checkbox/confirm/text/path)
-    └── theme.py          Tema Rich compartido
+    ├── browser.py
+    ├── components.py
+    ├── doc_viewer.py
+    ├── formatter.py
+    ├── menus.py
+    └── theme.py
 ```
 
 ## Documentación
 
-- [Guía: Crear una App](docs/getting_started.md)
-- [Arquitectura](docs/architecture.md)
+- [`docs/getting_started.md`](docs/getting_started.md): cómo crear una app hija.
+- [`docs/architecture.md`](docs/architecture.md): responsabilidades, capas y flujo interno.
