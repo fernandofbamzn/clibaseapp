@@ -24,6 +24,7 @@ from clibaseapp.models import BrowseResult, DoctorCheck, DoctorResult
 
 # ── Core ──
 from clibaseapp.core.config import ConfigManager
+from clibaseapp.core.logger import get_logger, setup_logger
 from clibaseapp.core.scanner import scan_files
 from clibaseapp.core.dependency_check import check_and_install
 
@@ -54,6 +55,8 @@ __all__ = [
     # Core
     "CLIBaseApp",
     "ConfigManager",
+    "setup_logger",
+    "get_logger",
     "scan_files",
     "check_and_install",
     # Exceptions

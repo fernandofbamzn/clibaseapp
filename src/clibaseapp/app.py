@@ -15,6 +15,7 @@ import typer
 from rich.console import Console
 
 from clibaseapp.core.config import ConfigManager
+from clibaseapp.core.logger import setup_logger, get_logger
 from clibaseapp.core.updater import check_for_updates
 from clibaseapp.exceptions import CLIAppError, ConfigurationError
 from clibaseapp.models import DoctorResult
@@ -72,8 +73,12 @@ class CLIBaseApp:
         self._file_extensions: Optional[Set[str]] = None
         self._file_icon: str = "📄"
 
-        # Directorio raíz de la app hija (para doc_viewer)
+        # Directorio raíz de la app hija (para doc_viewer y logs)
         self._app_dir: Path = Path.cwd()
+
+        # Inicializar el logger con rotación diaria en <app_dir>/logs/
+        self.logger = setup_logger(app_name=app_name, app_dir=self._app_dir)
+
         # Registrar callback de Typer
         self.cli.callback(invoke_without_command=True)(self._main_callback)
 
@@ -242,14 +247,17 @@ class CLIBaseApp:
             self._register_default_commands()
             self.cli()
         except ConfigurationError as exc:
+            self.logger.error("Error de Configuración: %s", exc, exc_info=True)
             self.console.print(f"[bold red]Error de Configuración:[/] {exc}")
             sys.exit(2)
         except CLIAppError as exc:
+            self.logger.error("Error del Framework: %s", exc, exc_info=True)
             self.console.print(f"[bold red]Error del Framework:[/] {exc}")
             sys.exit(3)
         except KeyboardInterrupt:
             self.console.print("\n[yellow]Aplicación cerrada por el usuario[/]")
             sys.exit(0)
         except Exception as exc:
+            self.logger.critical("Excepción no controlada: %s", exc, exc_info=True)
             self.console.print(f"[bold red]Excepción no controlada:[/] {exc}")
             sys.exit(1)
