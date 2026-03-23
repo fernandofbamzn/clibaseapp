@@ -34,6 +34,7 @@ class DoctorService:
         verified_paths = {}
         if paths:
             for name, path in paths.items():
-                verified_paths[name] = (path, path.exists())
+                p = Path(path) if not isinstance(path, Path) else path
+                verified_paths[name] = (p, p.exists())
 
         return DoctorResult(checks=checks, paths=verified_paths)
