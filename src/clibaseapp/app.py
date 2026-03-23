@@ -74,7 +74,6 @@ class CLIBaseApp:
 
         # Directorio raíz de la app hija (para doc_viewer)
         self._app_dir: Path = Path.cwd()
-
         # Registrar callback de Typer
         self.cli.callback(invoke_without_command=True)(self._main_callback)
 
@@ -87,6 +86,7 @@ class CLIBaseApp:
                     f"[bold red]Error Crítico:[/] El binario obligatorio '{binary}' "
                     "no está instalado en el PATH del sistema."
                 )
+                input("\nPresiona Enter para salir...")
                 sys.exit(1)
 
     def register_menu_option(self, title: str, value: str, callback: Callable) -> None:
@@ -152,6 +152,32 @@ class CLIBaseApp:
         """Visor de documentación."""
         show_docs(self._app_dir)
 
+    def _run_logs(self) -> None:
+        """Visor paginado de logs de la aplicación."""
+        clear_screen()
+        show_header("Visor de Logs", "Inicio > Logs", icon="📜")
+        
+        log_files = list(self._app_dir.glob("*.log")) + list(self._app_dir.glob("logs/*.log"))
+        if not log_files:
+            show_warning("No se encontraron archivos de log (.log) en el directorio de la app.")
+            return
+            
+        choices = [f"📄 {f.name} ({f.parent.name})" for f in log_files]
+        choices.append("❌ Volver")
+        
+        selection = questionary.select("Elige el archivo a visualizar:", choices=choices).ask()
+        if selection is None or selection == "❌ Volver":
+            return
+            
+        selected_file = log_files[choices.index(selection)]
+        
+        try:
+            content = selected_file.read_text(encoding="utf-8", errors="replace")
+            with self.console.pager():
+                self.console.print(content)
+        except Exception as e:
+            show_warning(f"Error al leer el log: {e}")
+
     def _run_update(self) -> None:
         """Actualizador vía Git si la instalación lo soporta."""
         entrypoint = sys.modules["__main__"].__file__
@@ -163,6 +189,7 @@ class CLIBaseApp:
         """Registra las opciones por defecto del framework DESPUÉS de las del hijo."""
         self.register_menu_option("🩺 Diagnóstico (doctor)", "doctor", self._run_doctor)
         self.register_menu_option("⚙️ Configuración (config)", "config", self._run_config)
+        self.register_menu_option("📜 Visor de Logs (logs)", "logs", self._run_logs)
         self.register_menu_option("📖 Documentación (docs)", "docs", self._run_docs)
         self.register_menu_option("🔄 Actualizar App (update)", "update", self._run_update)
 

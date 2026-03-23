@@ -81,6 +81,17 @@ def check_for_updates(app_entrypoint_file: str) -> None:
             show_success("La aplicación ya está en la última versión.")
             return
 
+        req_path = repo_root / "requirements.txt"
+        if req_path.exists():
+            show_info("Actualizando dependencias del framework / entorno...")
+            try:
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "-q", "-r", str(req_path)],
+                    cwd=repo_root, check=True
+                )
+            except Exception as e:
+                show_error(f"Error instalando requisitos: {e}")
+
         show_warning("¡La aplicación se ha actualizado! Reiniciando automáticamente...")
         os.execv(sys.executable, [sys.executable] + sys.argv)
     except subprocess.CalledProcessError as exc:
