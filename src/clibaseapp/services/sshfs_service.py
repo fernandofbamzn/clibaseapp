@@ -88,9 +88,9 @@ def mount_drive(config) -> None:
         remote_clean,
         mount_point,
     )
-
+    remote_path_fixed = f"\"{remote_clean}\""
     result = _run_command(
-        ["sshfs", f"{user}@{ip}:{remote_clean}", mount_point, "-o", "reconnect"],
+        ["sshfs", f"{user}@{ip}:{remote_path_fixed}", mount_point, "-o", "reconnect"],
         logger=logger,
         description="sshfs",
     )
