@@ -31,7 +31,7 @@ from clibaseapp.core.dependency_check import check_and_install
 # ── Servicios ──
 from clibaseapp.services.doctor_service import DoctorService
 from clibaseapp.services.browse_service import BrowseService, BrowseSelector
-from clibaseapp.services.sshfs_service import mount_drive
+from clibaseapp.services.sshfs_service import describe_mount_status, mount_drive
 
 # ── UI ──
 from clibaseapp.ui.components import (
@@ -77,6 +77,7 @@ __all__ = [
     "BrowseService",
     "BrowseSelector",
     "mount_drive",
+    "describe_mount_status",
     # UI
     "BrowserMenu",
     "BaseMenu",

@@ -120,3 +120,19 @@ def test_mount_drive_aborts_when_directory_has_content_and_user_declines(monkeyp
     sshfs_service.mount_drive(config)
 
     run_mock.assert_not_called()
+
+
+def test_describe_mount_status_does_not_treat_content_as_mounted(monkeypatch, tmp_path: Path) -> None:
+    mount_point = tmp_path / "mnt"
+    mount_point.mkdir(parents=True, exist_ok=True)
+    (mount_point / "existing.txt").write_text("x", encoding="utf-8")
+
+    monkeypatch.setattr(sshfs_service.os.path, "ismount", lambda _path: False)
+    monkeypatch.setattr(sshfs_service, "_detect_mount_from_mountinfo", lambda _path: None)
+    monkeypatch.setattr(sshfs_service, "_detect_mount_from_commands", lambda _path: None)
+    monkeypatch.setattr(sshfs_service, "_detect_mount_from_stat", lambda _path: None)
+
+    mounted, detail = sshfs_service.describe_mount_status(str(mount_point))
+
+    assert mounted is False
+    assert "no se pudo verificar como punto de montaje" in detail.lower()

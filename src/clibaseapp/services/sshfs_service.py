@@ -9,6 +9,7 @@ de la aplicación.
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import time
 from pathlib import Path
@@ -16,6 +17,12 @@ from pathlib import Path
 import rich
 
 from clibaseapp.core.logger import get_logger
+
+
+def describe_mount_status(mount_point: str) -> tuple[bool, str]:
+    """Devuelve si la ruta puede verificarse como montada y el motivo."""
+    state, detail = _inspect_mount_point(mount_point)
+    return state == "mounted", detail
 
 
 def mount_drive(config) -> None:
@@ -101,18 +108,8 @@ def mount_drive(config) -> None:
     post_state, post_detail = _inspect_mount_point(mount_point)
     logger.info("Estado posterior del punto de montaje '%s': %s - %s", mount_point, post_state, post_detail)
 
-    if post_state in {"mounted", "content"}:
+    if post_state == "mounted":
         rich.print("\n[green]✔ Montaje satisfactorio.[/green]")
-        if post_state == "content" and not os.path.ismount(mount_point):
-            rich.print(
-                "[yellow]⚠ La ruta responde y contiene datos, "
-                "pero no figura como punto de montaje del sistema.[/yellow]"
-            )
-            logger.warning(
-                "Montaje de '%s' operativo pero sin confirmación de mountpoint: %s",
-                mount_point,
-                post_detail,
-            )
         return
 
     logger.error(
@@ -195,8 +192,9 @@ def _run_command(command: list[str], logger, description: str) -> dict[str, str 
 def _inspect_mount_point(mount_point: str) -> tuple[str, str]:
     """Describe el estado observable de una ruta de montaje."""
     path = Path(mount_point)
-    if os.path.ismount(mount_point):
-        return "mounted", "La ruta es un punto de montaje del sistema."
+    verified, verified_detail = _verify_mount(path)
+    if verified:
+        return "mounted", verified_detail
     if not path.exists():
         return "missing", "La ruta aún no existe."
     if not path.is_dir():
@@ -208,8 +206,124 @@ def _inspect_mount_point(mount_point: str) -> tuple[str, str]:
         return "inaccessible", f"No se pudo listar la ruta: {exc}"
 
     if entries:
-        return "content", f"La ruta contiene {len(entries)} entrada(s)."
+        return "content", (
+            f"La ruta contiene {len(entries)} entrada(s), "
+            "pero no se pudo verificar como punto de montaje."
+        )
     return "empty", "La ruta existe y está vacía."
+
+
+def _verify_mount(path: Path) -> tuple[bool, str]:
+    """Intenta verificar el montaje usando varias fuentes del sistema."""
+    mount_point = str(path)
+
+    if os.path.ismount(mount_point):
+        return True, "La ruta es un punto de montaje del sistema."
+
+    if not path.exists() or not path.is_dir():
+        return False, "La ruta no existe o no es un directorio."
+
+    mountinfo_detail = _detect_mount_from_mountinfo(path)
+    if mountinfo_detail:
+        return True, mountinfo_detail
+
+    command_detail = _detect_mount_from_commands(path)
+    if command_detail:
+        return True, command_detail
+
+    stat_detail = _detect_mount_from_stat(path)
+    if stat_detail:
+        return True, stat_detail
+
+    return False, "No se encontró evidencia verificable de montaje."
+
+
+def _detect_mount_from_mountinfo(path: Path) -> str | None:
+    """Comprueba mountinfo en sistemas Linux."""
+    mountinfo = Path("/proc/self/mountinfo")
+    if not mountinfo.exists():
+        return None
+
+    try:
+        resolved_path = str(path.resolve())
+        for line in mountinfo.read_text(encoding="utf-8", errors="replace").splitlines():
+            left, _separator, right = line.partition(" - ")
+            if not _separator:
+                continue
+            left_parts = left.split()
+            right_parts = right.split()
+            if len(left_parts) < 5 or len(right_parts) < 2:
+                continue
+            mount_target = _decode_mount_field(left_parts[4])
+            if mount_target == resolved_path:
+                source = right_parts[1] if len(right_parts) > 1 else "desconocido"
+                fstype = right_parts[0] if right_parts else "desconocido"
+                return f"Montaje verificado por mountinfo: {source} ({fstype})."
+    except OSError:
+        return None
+
+    return None
+
+
+def _detect_mount_from_commands(path: Path) -> str | None:
+    """Usa comandos estándar del sistema para verificar un mountpoint."""
+    mount_point = str(path)
+
+    if shutil.which("mountpoint"):
+        try:
+            result = subprocess.run(
+                ["mountpoint", "-q", mount_point],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0:
+                return "Montaje verificado por el comando mountpoint."
+        except OSError:
+            pass
+
+    if shutil.which("findmnt"):
+        try:
+            result = subprocess.run(
+                ["findmnt", "-T", mount_point, "--noheadings", "--output", "TARGET,SOURCE,FSTYPE"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                last_line = result.stdout.strip().splitlines()[-1]
+                return f"Montaje verificado por findmnt: {last_line}"
+        except OSError:
+            pass
+
+    return None
+
+
+def _detect_mount_from_stat(path: Path) -> str | None:
+    """Compara el dispositivo del directorio con el de su padre."""
+    try:
+        resolved = path.resolve()
+        parent = resolved.parent
+        if parent == resolved:
+            return None
+        current_stat = resolved.stat()
+        parent_stat = parent.stat()
+    except OSError:
+        return None
+
+    if current_stat.st_dev != parent_stat.st_dev:
+        return "Montaje verificado por cambio de dispositivo respecto al directorio padre."
+    return None
+
+
+def _decode_mount_field(value: str) -> str:
+    """Decodifica escapes de mountinfo."""
+    return (
+        value.replace("\\040", " ")
+        .replace("\\011", "\t")
+        .replace("\\012", "\n")
+        .replace("\\134", "\\")
+    )
 
 
 def _summarize_streams(stdout: str, stderr: str) -> str:
