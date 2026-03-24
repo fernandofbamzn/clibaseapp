@@ -40,6 +40,7 @@ def test_mount_drive_handles_missing_sshfs(monkeypatch, tmp_path: Path) -> None:
 
     assert run_mock.call_count == 1
     assert config.get("sshfs_config")["ip"] == "1.2.3.4"
+    assert run_mock.call_args.args[0][1] == "root@1.2.3.4:/remote/path"
 
 
 def test_mount_drive_handles_non_zero_sshfs_exit(monkeypatch, tmp_path: Path) -> None:
@@ -136,3 +137,26 @@ def test_describe_mount_status_does_not_treat_content_as_mounted(monkeypatch, tm
 
     assert mounted is False
     assert "no se pudo verificar como punto de montaje" in detail.lower()
+
+
+def test_detect_mount_from_commands_ignores_findmnt_non_exact_target(monkeypatch, tmp_path: Path) -> None:
+    mount_point = tmp_path / "mnt"
+    mount_point.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(sshfs_service.shutil, "which", lambda command: "x" if command == "findmnt" else None)
+    monkeypatch.setattr(
+        sshfs_service.subprocess,
+        "run",
+        Mock(
+            return_value=subprocess.CompletedProcess(
+                ["findmnt"],
+                0,
+                stdout="/ /dev/sda1 ext4\n",
+                stderr="",
+            )
+        ),
+    )
+
+    detail = sshfs_service._detect_mount_from_commands(mount_point)
+
+    assert detail is None

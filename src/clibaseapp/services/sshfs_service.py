@@ -88,9 +88,8 @@ def mount_drive(config) -> None:
         remote_clean,
         mount_point,
     )
-    remote_path_fixed = f"\"{remote_clean}\""
     result = _run_command(
-        ["sshfs", f"{user}@{ip}:{remote_path_fixed}", mount_point, "-o", "reconnect"],
+        ["sshfs", f"{user}@{ip}:{remote_clean}", mount_point, "-o", "reconnect"],
         logger=logger,
         description="sshfs",
     )
@@ -285,14 +284,16 @@ def _detect_mount_from_commands(path: Path) -> str | None:
     if shutil.which("findmnt"):
         try:
             result = subprocess.run(
-                ["findmnt", "-T", mount_point, "--noheadings", "--output", "TARGET,SOURCE,FSTYPE"],
+                ["findmnt", "-M", mount_point, "--noheadings", "--output", "TARGET,SOURCE,FSTYPE"],
                 check=False,
                 capture_output=True,
                 text=True,
             )
             if result.returncode == 0 and result.stdout.strip():
                 last_line = result.stdout.strip().splitlines()[-1]
-                return f"Montaje verificado por findmnt: {last_line}"
+                target = last_line.split()[0] if last_line.split() else ""
+                if target == mount_point:
+                    return f"Montaje verificado por findmnt: {last_line}"
         except OSError:
             pass
 
