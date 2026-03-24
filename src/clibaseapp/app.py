@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Set
 import shutil
+from contextlib import nullcontext
 
 import questionary
 import typer
@@ -159,29 +160,99 @@ class CLIBaseApp:
 
     def _run_logs(self) -> None:
         """Visor paginado de logs de la aplicación."""
-        clear_screen()
-        show_header("Visor de Logs", "Inicio > Logs", icon="📜")
-        
+        while True:
+            clear_screen()
+            show_header("Visor de Logs", "Inicio > Logs", icon="📜")
+
+            log_files = self._get_log_files()
+            if not log_files:
+                show_warning("No se encontraron archivos de log (.log) en el directorio de la app.")
+                return
+
+            choices = [f"📄 {log_file.name} ({log_file.parent.name})" for log_file in log_files]
+            choices.append("🧹 Borrar todos los logs")
+            choices.append("❌ Volver")
+
+            selection = questionary.select("Elige un archivo de log:", choices=choices).ask()
+            if selection is None or selection == "❌ Volver":
+                return
+
+            if selection == "🧹 Borrar todos los logs":
+                if self._confirm_delete_all_logs(log_files):
+                    show_success("Archivos de log borrados correctamente.")
+                continue
+
+            selected_file = log_files[choices.index(selection)]
+            action = questionary.select(
+                f"Acción para {selected_file.name}:",
+                choices=["👁 Ver log", "🗑 Borrar log", "↩ Volver"],
+            ).ask()
+
+            if action is None or action == "↩ Volver":
+                continue
+
+            if action == "👁 Ver log":
+                self._view_log_file(selected_file)
+                continue
+
+            if action == "🗑 Borrar log":
+                if self._confirm_delete_log(selected_file):
+                    show_success(f"Log eliminado: {selected_file.name}")
+
+    def _get_log_files(self) -> List[Path]:
+        """Devuelve los logs ordenados de más reciente a más antiguo."""
         log_files = list(self._app_dir.glob("*.log")) + list(self._app_dir.glob("logs/*.log"))
-        if not log_files:
-            show_warning("No se encontraron archivos de log (.log) en el directorio de la app.")
-            return
-            
-        choices = [f"📄 {f.name} ({f.parent.name})" for f in log_files]
-        choices.append("❌ Volver")
-        
-        selection = questionary.select("Elige el archivo a visualizar:", choices=choices).ask()
-        if selection is None or selection == "❌ Volver":
-            return
-            
-        selected_file = log_files[choices.index(selection)]
-        
+        return sorted(log_files, key=lambda path: path.stat().st_mtime, reverse=True)
+
+    def _view_log_file(self, log_file: Path) -> None:
+        """Muestra el contenido de un log en el pager."""
         try:
-            content = selected_file.read_text(encoding="utf-8", errors="replace")
-            with self.console.pager():
+            content = log_file.read_text(encoding="utf-8", errors="replace")
+            pager = self.console.pager() if sys.stdout.isatty() else nullcontext()
+            with pager:
                 self.console.print(content)
-        except Exception as e:
-            show_warning(f"Error al leer el log: {e}")
+        except Exception as exc:
+            self.logger.warning("Error al leer el log '%s': %s", log_file, exc, exc_info=True)
+            show_warning(f"Error al leer el log: {exc}")
+
+    def _confirm_delete_log(self, log_file: Path) -> bool:
+        """Pide confirmación y borra un log concreto."""
+        confirm = questionary.confirm(
+            f"¿Borrar el log '{log_file.name}'?",
+            default=False,
+        ).ask()
+        if not confirm:
+            return False
+        return self._delete_log_file(log_file)
+
+    def _confirm_delete_all_logs(self, log_files: List[Path]) -> bool:
+        """Pide confirmación y borra todos los logs visibles."""
+        confirm = questionary.confirm(
+            f"¿Borrar los {len(log_files)} archivo(s) de log?",
+            default=False,
+        ).ask()
+        if not confirm:
+            return False
+
+        deleted_any = False
+        for log_file in log_files:
+            deleted_any = self._delete_log_file(log_file) or deleted_any
+        return deleted_any
+
+    def _delete_log_file(self, log_file: Path) -> bool:
+        """Borra un log y registra cualquier error."""
+        try:
+            log_file.unlink()
+            self.logger.info("Log eliminado manualmente: %s", log_file)
+            return True
+        except FileNotFoundError:
+            self.logger.warning("El log ya no existe al intentar borrarlo: %s", log_file)
+            show_warning(f"El archivo '{log_file.name}' ya no existe.")
+            return False
+        except OSError as exc:
+            self.logger.warning("No se pudo borrar el log '%s': %s", log_file, exc, exc_info=True)
+            show_warning(f"No se pudo borrar '{log_file.name}': {exc}")
+            return False
 
     def _run_update(self) -> None:
         """Actualizador vía Git si la instalación lo soporta."""
