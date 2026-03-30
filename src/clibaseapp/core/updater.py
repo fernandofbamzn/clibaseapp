@@ -1,6 +1,4 @@
-"""
-Módulo de actualización automática desde el origen Git local del ejecutable.
-"""
+"""Modulo de actualizacion automatica desde el origen Git local del ejecutable."""
 
 from __future__ import annotations
 
@@ -17,12 +15,13 @@ from clibaseapp.ui.components import clear_screen, show_error, show_header, show
 UP_TO_DATE_MARKERS = (
     "Already up to date.",
     "Already up-to-date.",
-    "Ya está actualizado.",
+    "Ya esta actualizado.",
 )
 
 
 def _run_git_command(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     """Ejecuta un comando Git y devuelve su resultado."""
+
     return subprocess.run(
         ["git", *args],
         capture_output=True,
@@ -33,10 +32,11 @@ def _run_git_command(args: list[str], cwd: Path) -> subprocess.CompletedProcess[
 
 
 def _show_non_git_installation_warning() -> None:
-    """Informa al usuario de que la autoactualización por Git no está disponible."""
+    """Informa al usuario de que la autoactualizacion por Git no esta disponible."""
+
     show_warning(
-        "La actualización automática por Git no está disponible en este entorno. "
-        "Si instalaste la aplicación vía pip o paquete, actualízala con ese mismo método."
+        "La actualizacion automatica por Git no esta disponible en este entorno. "
+        "Si instalaste la aplicacion via pip o paquete, actualizala con ese mismo metodo."
     )
 
 
@@ -90,17 +90,65 @@ def _repo_has_updates(repo_root: Path) -> tuple[bool, str]:
     return (not _is_repo_already_updated(output), output)
 
 
+def _read_requirements_lines(req_path: Path) -> list[str]:
+    try:
+        return req_path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+
+
+def _is_direct_reference_requirement(line: str) -> bool:
+    normalized = line.strip()
+    if not normalized or normalized.startswith("#"):
+        return False
+    if normalized.startswith(("-", "--")):
+        return False
+
+    prefixes = ("git+", "hg+", "svn+", "bzr+")
+    infix_markers = (" @ git+", " @ hg+", " @ svn+", " @ bzr+", " @ https://", " @ http://")
+    return normalized.startswith(prefixes) or any(marker in normalized for marker in infix_markers)
+
+
+def _extract_direct_reference_requirements(req_path: Path) -> list[str]:
+    return [
+        line.strip()
+        for line in _read_requirements_lines(req_path)
+        if _is_direct_reference_requirement(line)
+    ]
+
+
 def _install_repo_requirements(repo_root: Path) -> None:
     req_path = repo_root / "requirements.txt"
     if not req_path.exists():
         return
 
-    show_info("Actualizando dependencias del entorno de la aplicación...")
+    show_info("Actualizando dependencias del entorno de la aplicacion...")
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q", "-r", str(req_path)],
         cwd=repo_root,
         check=True,
     )
+
+    direct_requirements = _extract_direct_reference_requirements(req_path)
+    if not direct_requirements:
+        return
+
+    show_info("Forzando la reinstalacion de dependencias VCS/direct URL...")
+    for requirement in direct_requirements:
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pip",
+                "install",
+                "-q",
+                "--upgrade",
+                "--force-reinstall",
+                requirement,
+            ],
+            cwd=repo_root,
+            check=True,
+        )
 
 
 def _refresh_editable_repo(repo_root: Path) -> None:
@@ -108,7 +156,7 @@ def _refresh_editable_repo(repo_root: Path) -> None:
     if not pyproject_path.exists():
         return
 
-    show_info(f"Actualizando instalación editable de {repo_root.name}...")
+    show_info(f"Actualizando instalacion editable de {repo_root.name}...")
     subprocess.run(
         [sys.executable, "-m", "pip", "install", "-q", "-e", str(repo_root)],
         cwd=repo_root,
@@ -118,8 +166,9 @@ def _refresh_editable_repo(repo_root: Path) -> None:
 
 def check_for_updates(app_entrypoint_file: str) -> None:
     """Actualiza el repo de la app y opcionalmente el repo editable de clibaseapp."""
+
     clear_screen()
-    show_header("Actualización de la Aplicación", icon="🔄")
+    show_header("Actualizacion de la Aplicacion", icon="🔄")
 
     project_dir = Path(app_entrypoint_file).parent.resolve()
 
@@ -132,7 +181,7 @@ def check_for_updates(app_entrypoint_file: str) -> None:
         show_error("Comando 'git' no encontrado en el sistema.")
         return
     except Exception as exc:
-        show_error(f"Error inesperado al preparar la actualización: {exc}")
+        show_error(f"Error inesperado al preparar la actualizacion: {exc}")
         return
 
     app_updated = False
@@ -154,7 +203,7 @@ def check_for_updates(app_entrypoint_file: str) -> None:
 
             if has_framework_updates:
                 update_framework = questionary.confirm(
-                    f"Hay actualizaciones para '{framework_repo_root.name}'. ¿Quieres actualizarlas también?",
+                    f"Hay actualizaciones para '{framework_repo_root.name}'. ¿Quieres actualizarlas tambien?",
                     default=True,
                 ).ask()
                 if update_framework:
@@ -163,7 +212,7 @@ def check_for_updates(app_entrypoint_file: str) -> None:
                     _print_git_output(framework_output)
                     framework_updated = not _is_repo_already_updated(framework_output)
                 else:
-                    show_info(f"Se omite la actualización de {framework_repo_root.name}.")
+                    show_info(f"Se omite la actualizacion de {framework_repo_root.name}.")
 
         if app_updated:
             _install_repo_requirements(repo_root)
@@ -172,15 +221,15 @@ def check_for_updates(app_entrypoint_file: str) -> None:
             _refresh_editable_repo(framework_repo_root)
 
         if not app_updated and not framework_updated:
-            show_success("La aplicación ya está en la última versión.")
+            show_success("La aplicacion ya esta en la ultima version.")
             return
 
         if app_updated and framework_updated:
-            show_warning("¡La aplicación y clibaseapp se han actualizado! Reiniciando automáticamente...")
+            show_warning("¡La aplicacion y clibaseapp se han actualizado! Reiniciando automaticamente...")
         elif app_updated:
-            show_warning("¡La aplicación se ha actualizado! Reiniciando automáticamente...")
+            show_warning("¡La aplicacion se ha actualizado! Reiniciando automaticamente...")
         else:
-            show_warning("¡clibaseapp se ha actualizado! Reiniciando automáticamente...")
+            show_warning("¡clibaseapp se ha actualizado! Reiniciando automaticamente...")
         os.execv(sys.executable, [sys.executable] + sys.argv)
     except subprocess.CalledProcessError as exc:
         stderr = (exc.stderr or "").strip()

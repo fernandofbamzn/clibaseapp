@@ -11,8 +11,72 @@ def _completed_process(stdout: str = "", stderr: str = "") -> subprocess.Complet
     return subprocess.CompletedProcess(args=["git"], returncode=0, stdout=stdout, stderr=stderr)
 
 
+def test_extract_direct_reference_requirements_detects_vcs_and_direct_urls(tmp_path: Path) -> None:
+    req_path = tmp_path / "requirements.txt"
+    req_path.write_text(
+        "\n".join(
+            [
+                "rich",
+                "clibaseapp @ git+https://github.com/example/clibaseapp.git",
+                "git+https://github.com/example/private-tool.git",
+                "package @ https://example.com/pkg.whl",
+                "-r extra.txt",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = updater._extract_direct_reference_requirements(req_path)
+
+    assert result == [
+        "clibaseapp @ git+https://github.com/example/clibaseapp.git",
+        "git+https://github.com/example/private-tool.git",
+        "package @ https://example.com/pkg.whl",
+    ]
+
+
+def test_install_repo_requirements_force_reinstalls_direct_references(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    req_path = repo_root / "requirements.txt"
+    req_path.write_text(
+        "\n".join(
+            [
+                "rich",
+                "clibaseapp @ git+https://github.com/example/clibaseapp.git",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    run = Mock()
+
+    monkeypatch.setattr(updater.subprocess, "run", run)
+    monkeypatch.setattr(updater, "show_info", Mock())
+
+    updater._install_repo_requirements(repo_root)
+
+    assert run.call_args_list[0].args[0] == [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "-q",
+        "-r",
+        str(req_path),
+    ]
+    assert run.call_args_list[1].args[0] == [
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
+        "-q",
+        "--upgrade",
+        "--force-reinstall",
+        "clibaseapp @ git+https://github.com/example/clibaseapp.git",
+    ]
+
+
 def test_check_for_updates_when_repo_is_already_updated(monkeypatch, tmp_path: Path) -> None:
-    """Prueba el flujo de un repositorio Git ya actualizado."""
     entrypoint = tmp_path / "app.py"
     entrypoint.write_text("print('app')", encoding="utf-8")
     repo_root = tmp_path / "repo"
@@ -35,12 +99,11 @@ def test_check_for_updates_when_repo_is_already_updated(monkeypatch, tmp_path: P
     updater.check_for_updates(str(entrypoint))
 
     assert run_git_command.call_args_list[2].args == (["pull"], repo_root)
-    show_success.assert_called_once_with("La aplicación ya está en la última versión.")
+    show_success.assert_called_once_with("La aplicacion ya esta en la ultima version.")
     execv.assert_not_called()
 
 
 def test_check_for_updates_restarts_after_app_changes(monkeypatch, tmp_path: Path) -> None:
-    """Prueba que el updater reinicia el proceso cuando git pull trae cambios."""
     entrypoint = tmp_path / "app.py"
     entrypoint.write_text("print('app')", encoding="utf-8")
     repo_root = tmp_path / "repo"
@@ -68,12 +131,11 @@ def test_check_for_updates_restarts_after_app_changes(monkeypatch, tmp_path: Pat
     updater.check_for_updates(str(entrypoint))
 
     install_requirements.assert_called_once_with(repo_root)
-    show_warning.assert_called_with("¡La aplicación se ha actualizado! Reiniciando automáticamente...")
+    show_warning.assert_called_with("¡La aplicacion se ha actualizado! Reiniciando automaticamente...")
     execv.assert_called_once_with(sys.executable, [sys.executable] + sys.argv)
 
 
 def test_check_for_updates_can_update_clibaseapp_after_prompt(monkeypatch, tmp_path: Path) -> None:
-    """Prueba que, si clibaseapp tiene cambios, pregunta y actualiza ambos repos."""
     entrypoint = tmp_path / "app.py"
     entrypoint.write_text("print('app')", encoding="utf-8")
     repo_root = tmp_path / "repo"
@@ -111,12 +173,11 @@ def test_check_for_updates_can_update_clibaseapp_after_prompt(monkeypatch, tmp_p
     assert run_git_command.call_args_list[3].args == (["pull", "--dry-run"], framework_root)
     assert run_git_command.call_args_list[4].args == (["pull"], framework_root)
     refresh_editable.assert_called_once_with(framework_root)
-    show_warning.assert_called_with("¡clibaseapp se ha actualizado! Reiniciando automáticamente...")
+    show_warning.assert_called_with("¡clibaseapp se ha actualizado! Reiniciando automaticamente...")
     execv.assert_called_once_with(sys.executable, [sys.executable] + sys.argv)
 
 
 def test_check_for_updates_skips_clibaseapp_when_user_declines(monkeypatch, tmp_path: Path) -> None:
-    """Prueba que si el usuario rechaza actualizar clibaseapp, no se hace pull ni restart."""
     entrypoint = tmp_path / "app.py"
     entrypoint.write_text("print('app')", encoding="utf-8")
     repo_root = tmp_path / "repo"
@@ -148,12 +209,11 @@ def test_check_for_updates_skips_clibaseapp_when_user_declines(monkeypatch, tmp_
     updater.check_for_updates(str(entrypoint))
 
     assert run_git_command.call_count == 4
-    show_success.assert_called_once_with("La aplicación ya está en la última versión.")
+    show_success.assert_called_once_with("La aplicacion ya esta en la ultima version.")
     execv.assert_not_called()
 
 
 def test_check_for_updates_handles_non_git_installations(monkeypatch, tmp_path: Path) -> None:
-    """Prueba que las instalaciones no Git muestran un aviso limpio."""
     entrypoint = tmp_path / "app.py"
     entrypoint.write_text("print('app')", encoding="utf-8")
     show_warning = Mock()
@@ -180,7 +240,6 @@ def test_check_for_updates_handles_non_git_installations(monkeypatch, tmp_path: 
 
 
 def test_check_for_updates_handles_missing_git(monkeypatch, tmp_path: Path) -> None:
-    """Prueba que se informa correctamente cuando git no está instalado."""
     entrypoint = tmp_path / "app.py"
     entrypoint.write_text("print('app')", encoding="utf-8")
     show_error = Mock()
@@ -194,7 +253,6 @@ def test_check_for_updates_handles_missing_git(monkeypatch, tmp_path: Path) -> N
 
 
 def test_check_for_updates_handles_pull_errors(monkeypatch, tmp_path: Path) -> None:
-    """Prueba que un fallo de git pull se comunica como error."""
     entrypoint = tmp_path / "app.py"
     entrypoint.write_text("print('app')", encoding="utf-8")
     repo_root = tmp_path / "repo"
