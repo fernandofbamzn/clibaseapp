@@ -20,7 +20,7 @@ from clibaseapp.exceptions import (
 )
 
 # ── Modelos ──
-from clibaseapp.models import BrowseResult, DoctorCheck, DoctorResult
+from clibaseapp.models import BrowseResult, DoctorCheck, DoctorResult, MenuAction
 
 # ── Core ──
 from clibaseapp.core.config import ConfigManager
@@ -72,6 +72,7 @@ __all__ = [
     "BrowseResult",
     "DoctorCheck",
     "DoctorResult",
+    "MenuAction",
     # Services
     "DoctorService",
     "BrowseService",
