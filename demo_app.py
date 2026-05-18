@@ -25,6 +25,8 @@ class DemoApp(CLIBaseApp):
         """Inicializa una app mínima que demuestra herencia y navegación."""
 
         super().__init__(app_name="demo-cli", description="Aplicación de Demo del Framework")
+        self._doctor_binaries.extend(["pdflatex"])
+        self.require_binaries(["pdflatex"])
 
     def run_tests(self) -> None:
         """Muestra una acción simple de negocio sobre el framework."""
