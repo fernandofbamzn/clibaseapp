@@ -32,6 +32,7 @@ from clibaseapp.core.dependency_check import check_and_install
 from clibaseapp.services.doctor_service import DoctorService
 from clibaseapp.services.browse_service import BrowseService, BrowseSelector
 from clibaseapp.services.sshfs_service import describe_mount_status, mount_drive
+from clibaseapp.services.latex_pdf_service import PdfBuildResult, build_pdf_from_latex
 
 # ── UI ──
 from clibaseapp.ui.components import (
@@ -79,6 +80,8 @@ __all__ = [
     "BrowseSelector",
     "mount_drive",
     "describe_mount_status",
+    "PdfBuildResult",
+    "build_pdf_from_latex",
     # UI
     "BrowserMenu",
     "BaseMenu",
